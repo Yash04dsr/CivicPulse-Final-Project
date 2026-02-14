@@ -7,15 +7,20 @@ async function getClearanceStatistics() {
     try {
         const snapshot = await db.collection('IssueDetails').get();
         const clearanceCount = new Map();
-        clearanceCount.set('1', 0);
-        clearanceCount.set('2', 0);
-        clearanceCount.set('3', 0);
+        clearanceCount.set(1, 0);
+        clearanceCount.set(2, 0);
+        clearanceCount.set(3, 0);
         snapshot.forEach((doc) => {
             const data = doc.data();
             const clearance = data.progress;
             clearanceCount.set(clearance, (clearanceCount.get(clearance) || 0) + 1);
         });
-        return Object.fromEntries(clearanceCount);
+        // Convert to object with string keys for JSON response
+        const result = {};
+        clearanceCount.forEach((value, key) => {
+            result[String(key)] = value;
+        });
+        return result;
     } catch (error) {
         console.error("Error calculating clearance statistics: ", error);
         return { '1': 0, '2': 0, '3': 0 };
@@ -62,9 +67,11 @@ async function deleteById(req, res) {
         if (snapshot.empty) {
             res.status(404).send('No issues found for the given user');
         } else {
-            snapshot.forEach(async (doc) => {
-                await db.collection('IssueDetails').doc(doc.id).delete();
+            const batch = db.batch();
+            snapshot.forEach((doc) => {
+                batch.delete(db.collection('IssueDetails').doc(doc.id));
             });
+            await batch.commit();
             res.send('Document(s) deleted successfully');
         }
     } catch (error) {
@@ -77,8 +84,8 @@ async function deleteByIssueId(req, res) {
     const id = req.params.id;
     try {
         const snapshot = await db.collection('IssueDetails').doc(id).get();
-        if (snapshot.empty) {
-            res.status(404).send('No issues found for the given user');
+        if (!snapshot.exists) {
+            res.status(404).send('No issues found for the given issue id');
         } else {
             await db.collection('IssueDetails').doc(id).delete();
             res.send('Document deleted successfully');
@@ -113,7 +120,7 @@ async function updateProgress(req, res) {
     const {progress} = req.body;
     try {
         const snapshot = await db.collection('IssueDetails').doc(id).get();
-        if (snapshot.empty) {
+        if (!snapshot.exists) {
             res.status(404).send('No issues found for the given issue id');
         } else {
             // Get the old progress for comparison
@@ -286,7 +293,7 @@ async function getAllIssuesByDepartment(req, res) {
         });
         const deptCountObj = Object.fromEntries(deptCount);
         res.send(deptCountObj);
-    } catch {
+    } catch (error) {
         console.error("Error fetching documents: ", error);
         res.status(500).send("Error fetching documents");
     }
@@ -315,7 +322,7 @@ async function getHeatmapData(req, res) {
             });
         });
         res.send(heatmapData);
-    } catch {
+    } catch (error) {
         console.error("Error fetching documents: ", error);
         res.status(500).send("Error fetching documents");
     }

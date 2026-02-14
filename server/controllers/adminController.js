@@ -48,37 +48,37 @@ async function getReportsCount(userId) {
         console.error("Error fetching reports: ", error);
         throw error;
     }
-}   
+}
 
-async function changeRoleById(req, res){
+async function changeRoleById(req, res) {
     const id = req.params.id;
     const role = req.body.role;
-    if(!id) {
+    if (!id) {
         res.status(400).send('User ID is required');
         return;
     }
-    if(!role) {
+    if (!role) {
         res.status(400).send('Role is required');
         return;
     }
-    try{
+    try {
         await db.collection('Users').doc(id).update({
             role: role
         });
         res.status(200).send('Role updated successfully');
-    }catch(error) {
+    } catch (error) {
         console.error("Error updating role: ", error);
         res.status(500).send("Error updating role");
     }
 }
 
-async function deleteId(req,res){
+async function deleteId(req, res) {
     const id = req.params.id;
-    if(!id) {
+    if (!id) {
         res.status(400).send('User ID is required');
         return;
     }
-    try{
+    try {
         const user = await admin.auth().getUser(id);
         await admin.auth().deleteUser(user.uid);
         console.log("Stage 0 Clear");
@@ -87,7 +87,7 @@ async function deleteId(req,res){
         console.log("Stage 1 Clear");
         await db.collection('Users').doc(id).delete();
         res.status(200).send('User deleted successfully');
-    }catch(error) {
+    } catch (error) {
         console.error("Error deleting user: ", error);
         res.status(500).send("Error deleting user");
     }
@@ -99,9 +99,11 @@ async function deleteById(id) {
         if (snapshot.empty) {
             return;
         } else {
-            snapshot.forEach(async (doc) => {
-                await db.collection('IssueDetails').doc(doc.id).delete();
+            const batch = db.batch();
+            snapshot.forEach((doc) => {
+                batch.delete(db.collection('IssueDetails').doc(doc.id));
             });
+            await batch.commit();
             return;
         }
     } catch (error) {
@@ -110,13 +112,13 @@ async function deleteById(id) {
     }
 }
 
-async function disableUser(req, res){
+async function disableUser(req, res) {
     const id = req.params.id;
-    if(!id) {
+    if (!id) {
         res.status(400).send('User ID is required');
         return;
     }
-    try{
+    try {
         const user = await admin.auth().getUser(id);
         await admin.auth().updateUser(user.uid, {
             disabled: true
@@ -125,19 +127,19 @@ async function disableUser(req, res){
             isEnabled: false
         });
         res.status(200).send('User disabled successfully');
-    }catch(error) {
+    } catch (error) {
         console.error("Error disabling user: ", error);
         res.status(500).send("Error disabling user");
     }
 }
 
-async function enableUser(req, res){
+async function enableUser(req, res) {
     const id = req.params.id;
-    if(!id) {
+    if (!id) {
         res.status(400).send('User ID is required');
         return;
     }
-    try{
+    try {
         const user = await admin.auth().getUser(id);
         await admin.auth().updateUser(user.uid, {
             disabled: false
@@ -146,7 +148,7 @@ async function enableUser(req, res){
             isEnabled: true
         });
         res.status(200).send('User enabled successfully');
-    }catch(error) {
+    } catch (error) {
         console.error("Error enabling user: ", error);
         res.status(500).send("Error enabling user");
     }

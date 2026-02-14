@@ -14,10 +14,10 @@ async function sendIp(req, res) {
     }
     const dataToStore = {
         ip: IP,
-        history: 
-        [{
-            [date]: data.url,
-        }],
+        history:
+            [{
+                [date]: data.url,
+            }],
         userAgent: data.userAgent,
     }
     if (data) {
@@ -29,18 +29,22 @@ async function sendIp(req, res) {
             if (docRef.empty) {
                 await db.collection('VisitDetail').add(dataToStore);
             } else {
-                docRef.forEach(async doc => {
+                const updatePromises = [];
+                docRef.forEach(doc => {
                     const docData = doc.data();
                     const history = docData.history;
                     history.push({
                         [date]: data.url,
                     });
-                    await db.collection('VisitDetail').doc(doc.id).update({
-                        history: history,
-                    });
+                    updatePromises.push(
+                        db.collection('VisitDetail').doc(doc.id).update({
+                            history: history,
+                        })
+                    );
                 });
+                await Promise.all(updatePromises);
             }
-
+            res.status(200).send("OK");
         } catch (error) {
             console.error("Error inserting document: ", error);
             res.status(500).send("Error inserting document");
